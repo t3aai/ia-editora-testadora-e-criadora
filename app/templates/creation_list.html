@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Criar Prompt - T3A{% endblock %}
+
+{% block content %}
+<div style="margin-top:20px;">
+    <div class="flex-between mb-4">
+        <h1 style="font-size:24px;">Criacao de Prompts</h1>
+    </div>
+
+    <!-- New Project Form -->
+    <div class="card" style="border-color:var(--success); border-width:2px;">
+        <div class="card-title" style="margin-bottom:12px; color:var(--success);">Novo Projeto de Criacao</div>
+        <form method="post" action="/create/new" style="display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap;">
+            <div class="form-group" style="flex:1; min-width:200px; margin-bottom:0;">
+                <label for="name">Nome do projeto</label>
+                <input type="text" id="name" name="name" class="form-control" required
+                       placeholder="Ex: Gnomo Suplementos - Prompt Inicial">
+            </div>
+            <div class="form-group" style="min-width:200px; margin-bottom:0;">
+                <label for="client_id">Vincular a cliente (opcional)</label>
+                <select name="client_id" id="client_id" class="form-control">
+                    <option value="">-- Nenhum --</option>
+                    {% for c in clients %}
+                    <option value="{{ c.id }}">{{ c.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn btn-success btn-lg" style="margin-bottom:0;">Criar Projeto</button>
+        </form>
+    </div>
+
+    <!-- Projects List -->
+    {% if projects %}
+        {% for p in projects %}
+        <a href="/create/{{ p.id }}" style="text-decoration:none; color:inherit;">
+            <div class="client-card">
+                <div class="client-info">
+                    <h3>{{ p.name }}</h3>
+                    <p>Criado: {{ p.created_at.strftime('%d/%m/%Y %H:%M') if p.created_at else '' }}</p>
+                </div>
+                <div class="gap-2" style="align-items:center;">
+                    {% if p.status == 'completed' %}<span class="badge badge-success">Completo</span>
+                    {% elif p.status == 'generating' %}<span class="badge badge-warning">Gerando...</span>
+                    {% elif p.status == 'gaps' %}<span class="badge badge-warning">Gaps</span>
+                    {% elif p.status == 'analyzing' %}<span class="badge badge-info">Analisando</span>
+                    {% else %}<span class="badge badge-info">Coletando</span>{% endif %}
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    {% else %}
+        <div class="empty-state">
+            <h3>Nenhum projeto de criacao</h3>
+            <p>Crie um projeto acima para comecar o pipeline de geracao de prompts.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

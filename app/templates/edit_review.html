@@ -1,0 +1,359 @@
+{% extends "base.html" %}
+{% block title %}Revisar Edicoes - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-top:20px;">
+    <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">
+        <a href="/">Dashboard</a> /
+        <a href="/clients/{{ client.id }}">{{ client.name }}</a> /
+        Revisar Edicoes
+    </p>
+
+    <!-- Job Status -->
+    <div id="statusSection">
+        {% if job.status == 'pending' or job.status == 'processing' %}
+        <div class="card" style="text-align:center; padding:60px;">
+            <div class="spinner" style="margin:0 auto 16px;"></div>
+            <h2 style="margin-bottom:8px;">Processando edicao...</h2>
+            <p style="color:var(--text-muted);" id="statusMsg">{{ job.edit_request[:100] }}</p>
+            <div style="margin-top:16px; background:var(--bg-input); border-radius:8px; height:8px; overflow:hidden;">
+                <div id="progressBar" style="height:100%; background:var(--primary); width:{{ job.progress }}%; transition:width 0.5s;"></div>
+            </div>
+        </div>
+        {% elif job.status == 'failed' %}
+        <div class="alert alert-error">
+            Erro na edicao: {{ job.error_message }}
+            <br><a href="/clients/{{ client.id }}" style="color:white;">Voltar ao cliente</a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Changes Review (shown when completed) -->
+    <div id="reviewSection" style="{{ 'display:none;' if job.status != 'completed' else '' }}">
+        <div class="flex-between mb-4">
+            <div>
+                <h1 style="font-size:24px;">Revisar Alteracoes</h1>
+                <p style="color:var(--text-muted); font-size:14px;">{{ job.summary or job.edit_request[:100] }}</p>
+            </div>
+            <div class="gap-2">
+                <span id="counterDisplay" class="badge badge-info" style="font-size:14px; padding:6px 12px;">
+                    <span id="currentIdx">1</span> / <span id="totalCount">{{ changes|length }}</span>
+                </span>
+            </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div class="stat-row" id="statsBar">
+            <div class="stat-box">
+                <div class="stat-value" style="color:var(--primary);" id="totalStat">{{ changes|length }}</div>
+                <div class="stat-label">Total</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" style="color:var(--text-muted);" id="pendingStat">{{ changes|length }}</div>
+                <div class="stat-label">Pendentes</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value score-high" id="approvedStat">0</div>
+                <div class="stat-label">Aprovadas</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value score-low" id="rejectedStat">0</div>
+                <div class="stat-label">Rejeitadas</div>
+            </div>
+        </div>
+
+        <!-- Dots navigation -->
+        <div id="dotsNav" style="display:flex; justify-content:center; gap:8px; margin-bottom:16px;">
+            {% for c in changes %}
+            <div class="dot" data-idx="{{ loop.index0 }}" data-id="{{ c.id }}"
+                 style="width:12px; height:12px; border-radius:50%; background:var(--border); cursor:pointer; transition:all 0.3s;"
+                 onclick="goToCard({{ loop.index0 }})"></div>
+            {% endfor %}
+        </div>
+
+        <!-- Cards carousel -->
+        <div id="cardsContainer" style="position:relative; overflow:hidden;">
+            {% for c in changes %}
+            <div class="change-card" data-id="{{ c.id }}" data-field="{{ c.field }}" data-status="{{ c.status }}"
+                 style="{{ '' if loop.index0 == 0 else 'display:none;' }}">
+                <div class="card" style="border: 2px solid var(--border);">
+                    <!-- Header -->
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+                        <div class="gap-2" style="align-items:center;">
+                            {% if c.field == 'prompt' %}
+                                <span class="badge badge-info">Prompt</span>
+                            {% elif c.field == 'base_de_dados' %}
+                                <span class="badge" style="background:rgba(168,85,247,0.2); color:#c4b5fd;">Base de Dados</span>
+                            {% else %}
+                                <span class="badge" style="background:rgba(245,158,11,0.2); color:#fcd34d;">Prompt Geral</span>
+                            {% endif %}
+                            {% if c.section %}
+                            <span style="color:var(--text-muted); font-size:13px;">{{ c.section }}</span>
+                            {% endif %}
+                        </div>
+                        <span class="change-status badge badge-info" data-id="{{ c.id }}">Pendente</span>
+                    </div>
+
+                    <!-- Before -->
+                    {% if c.before_text %}
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:12px; font-weight:600; color:#f85149; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:16px;">-</span> Remover
+                        </div>
+                        <div class="diff-before">{{ c.before_text }}</div>
+                    </div>
+                    {% endif %}
+
+                    <!-- After -->
+                    <div style="margin-bottom:12px;">
+                        <div style="font-size:12px; font-weight:600; color:#3fb950; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:16px;">+</span> {{ 'Substituir por' if c.before_text else 'Adicionar' }}
+                        </div>
+                        <div class="diff-after">{{ c.after_text }}</div>
+                    </div>
+
+                    <!-- Reason -->
+                    <div class="change-reason">
+                        <strong>Motivo:</strong> {{ c.reason }}
+                    </div>
+
+                    <!-- Actions -->
+                    <div class="change-actions" data-id="{{ c.id }}" style="margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                        <button class="btn btn-success" onclick="approveChange({{ c.id }})">Aprovar</button>
+                        <button class="btn btn-outline" onclick="testChange({{ c.id }})" style="border:1px solid var(--primary); color:var(--primary);">
+                            Testar edicao
+                        </button>
+                        <button class="btn btn-danger btn-outline" onclick="rejectChange({{ c.id }})" style="border:1px solid var(--danger); color:var(--danger); background:transparent;">Rejeitar</button>
+                        <select id="model-{{ c.id }}" style="background:var(--bg-input); color:var(--text); border:1px solid var(--border); border-radius:var(--radius); padding:6px 10px; font-size:12px;">
+                            <option value="deepseek">DeepSeek</option>
+                            <option value="gpt">GPT-4.1</option>
+                            <option value="claude">Claude</option>
+                        </select>
+                    </div>
+
+                    <!-- Test Result -->
+                    <div class="test-result" id="test-{{ c.id }}" style="display:none; margin-top:12px;">
+                        <div style="font-size:12px; font-weight:600; color:var(--primary); margin-bottom:8px;">Simulacao de Conversa:</div>
+                        <div class="test-conversation" id="conv-{{ c.id }}"></div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Navigation arrows -->
+        <div style="display:flex; justify-content:center; gap:16px; margin-top:16px;">
+            <button class="btn btn-outline" onclick="prevCard()" id="prevBtn">&larr; Anterior</button>
+            <button class="btn btn-outline" onclick="nextCard()" id="nextBtn">Proxima &rarr;</button>
+        </div>
+
+        <!-- Apply section (shown when all resolved) -->
+        <div id="applySection" style="display:none; margin-top:24px;">
+            <div class="card" style="text-align:center; border-color:var(--success); border-width:2px;">
+                <h2 style="margin-bottom:8px;" id="applySummary">Revisao concluida!</h2>
+                <p style="color:var(--text-muted); margin-bottom:16px;" id="applyDetail"></p>
+                <div class="gap-2" style="justify-content:center;">
+                    <button class="btn btn-success btn-lg" onclick="applyChanges()" id="applyBtn">
+                        Aplicar alteracoes aprovadas
+                    </button>
+                    <a href="/clients/{{ client.id }}" class="btn btn-outline btn-lg">Voltar sem aplicar</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const clientId = {{ client.id }};
+const jobId = {{ job.id }};
+let currentIndex = 0;
+let cards = document.querySelectorAll('.change-card');
+const totalCards = cards ? cards.length : 0;
+
+// Poll for status if not completed
+{% if job.status != 'completed' %}
+const pollInterval = setInterval(async () => {
+    const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/status`);
+    const data = await resp.json();
+    document.getElementById('progressBar').style.width = data.progress + '%';
+    if (data.status === 'completed') {
+        clearInterval(pollInterval);
+        location.reload();
+    } else if (data.status === 'failed') {
+        clearInterval(pollInterval);
+        location.reload();
+    }
+}, 2000);
+{% endif %}
+
+function updateUI() {
+    if (!cards || totalCards === 0) return;
+    // Show/hide cards
+    cards.forEach((card, i) => {
+        card.style.display = i === currentIndex ? '' : 'none';
+    });
+    document.getElementById('currentIdx').textContent = currentIndex + 1;
+
+    // Update dots
+    document.querySelectorAll('.dot').forEach((dot, i) => {
+        const cardEl = cards[i];
+        const status = cardEl.dataset.status;
+        if (status === 'approved') dot.style.background = 'var(--success)';
+        else if (status === 'rejected') dot.style.background = 'var(--danger)';
+        else if (i === currentIndex) dot.style.background = 'var(--primary)';
+        else dot.style.background = 'var(--border)';
+    });
+
+    // Update stats
+    let approved = 0, rejected = 0, pending = 0;
+    cards.forEach(c => {
+        if (c.dataset.status === 'approved') approved++;
+        else if (c.dataset.status === 'rejected') rejected++;
+        else pending++;
+    });
+    document.getElementById('approvedStat').textContent = approved;
+    document.getElementById('rejectedStat').textContent = rejected;
+    document.getElementById('pendingStat').textContent = pending;
+
+    // Update status badges
+    cards.forEach(c => {
+        const id = c.querySelector('.change-card, .card').parentElement?.dataset?.id || c.dataset.id;
+        const statusBadge = c.querySelector('.change-status');
+        const actions = c.querySelector('.change-actions');
+        if (c.dataset.status === 'approved') {
+            statusBadge.className = 'change-status badge badge-success';
+            statusBadge.textContent = 'Aprovada';
+            if (actions) actions.style.display = 'none';
+        } else if (c.dataset.status === 'rejected') {
+            statusBadge.className = 'change-status badge badge-danger';
+            statusBadge.textContent = 'Rejeitada';
+            if (actions) actions.style.display = 'none';
+        }
+    });
+
+    // Check if all resolved
+    if (pending === 0 && totalCards > 0) {
+        document.getElementById('applySection').style.display = '';
+        const detail = `${approved} aprovada(s), ${rejected} rejeitada(s)`;
+        document.getElementById('applyDetail').textContent = detail;
+        if (approved === 0) {
+            document.getElementById('applyBtn').style.display = 'none';
+            document.getElementById('applySummary').textContent = 'Todas as alteracoes foram rejeitadas';
+        }
+    }
+}
+
+function goToCard(idx) {
+    currentIndex = idx;
+    updateUI();
+}
+
+function nextCard() {
+    if (currentIndex < totalCards - 1) {
+        currentIndex++;
+        updateUI();
+    }
+}
+
+function prevCard() {
+    if (currentIndex > 0) {
+        currentIndex--;
+        updateUI();
+    }
+}
+
+function advanceToNextPending() {
+    for (let i = 0; i < totalCards; i++) {
+        if (cards[i].dataset.status === 'pending') {
+            currentIndex = i;
+            updateUI();
+            return;
+        }
+    }
+    updateUI();
+}
+
+async function approveChange(changeId) {
+    const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/changes/${changeId}/approve`, { method: 'POST' });
+    const data = await resp.json();
+    // Update card status
+    cards.forEach(c => {
+        if (c.dataset.id == changeId) c.dataset.status = 'approved';
+    });
+    advanceToNextPending();
+}
+
+async function rejectChange(changeId) {
+    const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/changes/${changeId}/reject`, { method: 'POST' });
+    const data = await resp.json();
+    cards.forEach(c => {
+        if (c.dataset.id == changeId) c.dataset.status = 'rejected';
+    });
+    advanceToNextPending();
+}
+
+async function testChange(changeId) {
+    const modelSelect = document.getElementById('model-' + changeId);
+    const model = modelSelect ? modelSelect.value : 'deepseek';
+    const testDiv = document.getElementById('test-' + changeId);
+    const convDiv = document.getElementById('conv-' + changeId);
+
+    testDiv.style.display = '';
+    convDiv.innerHTML = '<div style="text-align:center; padding:16px; color:var(--text-muted);"><div class="spinner" style="width:24px;height:24px;margin:0 auto 8px;border-width:3px;"></div>Gerando cenario e simulando conversa com ' + model.toUpperCase() + '...</div>';
+
+    try {
+        const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/changes/${changeId}/test`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({model: model})
+        });
+        const data = await resp.json();
+
+        if (data.error && !data.conversation?.length) {
+            convDiv.innerHTML = '<div class="alert alert-error">Erro: ' + data.error + '</div>';
+            return;
+        }
+
+        let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+        for (const msg of (data.conversation || [])) {
+            if (msg.role === 'lead') {
+                html += '<div class="chat-lead"><span class="chat-label">Lead</span>' + escapeHtml(msg.content) + '</div>';
+            } else if (msg.role === 'bot') {
+                html += '<div class="chat-bot"><span class="chat-label">Chatbot (' + model + ')</span>' + escapeHtml(msg.content) + '</div>';
+            } else {
+                html += '<div class="chat-system">' + escapeHtml(msg.content) + '</div>';
+            }
+        }
+        html += '</div>';
+        convDiv.innerHTML = html;
+    } catch(e) {
+        convDiv.innerHTML = '<div class="alert alert-error">Erro ao testar: ' + e.message + '</div>';
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+async function applyChanges() {
+    document.getElementById('applyBtn').disabled = true;
+    document.getElementById('applyBtn').textContent = 'Aplicando...';
+    const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/apply`, { method: 'POST' });
+    const data = await resp.json();
+    if (data.applied >= 0) {
+        window.location.href = `/clients/${clientId}`;
+    } else {
+        alert('Erro ao aplicar alteracoes');
+        document.getElementById('applyBtn').disabled = false;
+        document.getElementById('applyBtn').textContent = 'Aplicar alteracoes aprovadas';
+    }
+}
+
+// Init
+updateUI();
+</script>
+{% endblock %}

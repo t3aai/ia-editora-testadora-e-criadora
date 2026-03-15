@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - T3A IA Editora</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-title">T3A IA Editora</div>
+            <div class="login-subtitle">Ferramenta interna de edicao de documentos</div>
+
+            {% if error %}
+            <div class="alert alert-error">{{ error }}</div>
+            {% endif %}
+
+            <form method="post" action="/login">
+                <div class="form-group">
+                    <label for="password">Senha de acesso</label>
+                    <input type="password" id="password" name="password" class="form-control"
+                           placeholder="Digite a senha..." autofocus required>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" style="width:100%;">Entrar</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

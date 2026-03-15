@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}Resultado da Edicao - {{ client.name }}{% endblock %}
+
+{% block content %}
+<div style="margin-top:20px;">
+    <!-- Breadcrumb -->
+    <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">
+        <a href="/">Dashboard</a> /
+        <a href="/clients/{{ client.id }}">{{ client.name }}</a> /
+        Resultado da Edicao
+    </p>
+
+    <div class="flex-between mb-4">
+        <h1 style="font-size:24px;">
+            Resultado: {{ 'Prompt' if record.document_type == 'prompt' else 'Base de Dados' }}
+        </h1>
+        <div class="gap-2">
+            <form method="post" action="/clients/{{ client.id }}/history/{{ record.id }}/apply"
+                  onsubmit="return confirm('Isso vai substituir o {{ 'prompt' if record.document_type == 'prompt' else 'base de dados' }} atual do cliente pelo conteudo editado. Confirma?')">
+                <button type="submit" class="btn btn-success">
+                    Aplicar Edicao no Cliente
+                </button>
+            </form>
+            <a href="/clients/{{ client.id }}" class="btn btn-outline">Voltar</a>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stat-row">
+        <div class="stat-box">
+            <div class="stat-value {% if record.score >= 80 %}score-high{% elif record.score >= 60 %}score-mid{% else %}score-low{% endif %}">
+                {{ record.score }}
+            </div>
+            <div class="stat-label">Score</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" style="color:var(--primary);">{{ record.iterations }}</div>
+            <div class="stat-label">Iteracoes</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value {% if record.success %}score-high{% else %}score-low{% endif %}">
+                {{ 'OK' if record.success else 'FALHA' }}
+            </div>
+            <div class="stat-label">Status</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" style="color:var(--text-muted); font-size:16px;">
+                {{ record.created_at.strftime('%d/%m/%Y %H:%M') if record.created_at else 'N/A' }}
+            </div>
+            <div class="stat-label">Data</div>
+        </div>
+    </div>
+
+    <!-- Analysis Summary -->
+    {% if analysis and analysis.get('issues') %}
+    <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">Problemas Identificados ({{ analysis.issues|length }})</div>
+        <table class="table">
+            <thead>
+                <tr><th>Severidade</th><th>Categoria</th><th>Problema</th><th>Sugestao</th></tr>
+            </thead>
+            <tbody>
+                {% for issue in analysis.issues[:10] %}
+                <tr>
+                    <td>
+                        <span class="badge {% if issue.severity == 'CRITICO' or issue.severity == 'CRITICO' %}badge-danger{% elif issue.severity == 'ALTO' %}badge-warning{% else %}badge-info{% endif %}">
+                            {{ issue.severity }}
+                        </span>
+                    </td>
+                    <td>{{ issue.get('category', '-') }}</td>
+                    <td style="max-width:300px;">{{ issue.get('problem', issue.get('issue', '-'))[:150] }}</td>
+                    <td style="max-width:300px;">{{ issue.get('suggestion', '-')[:150] }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if analysis.issues|length > 10 %}
+        <p style="color:var(--text-muted); font-size:12px; margin-top:8px;">
+            ... e mais {{ analysis.issues|length - 10 }} problemas
+        </p>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Validation -->
+    {% if validation %}
+    <div class="card">
+        <div class="card-title" style="margin-bottom:12px;">Validacao Final</div>
+        {% if validation.get('criteria_scores') %}
+        <div class="stat-row">
+            {% for key, value in validation.criteria_scores.items() %}
+            <div class="stat-box">
+                <div class="stat-value" style="font-size:18px; color:var(--primary);">{{ value }}</div>
+                <div class="stat-label">{{ key.replace('_', ' ').title() }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if validation.get('strengths') %}
+        <div style="margin-top:12px;">
+            <strong style="color:var(--success);">Pontos Fortes:</strong>
+            <ul style="margin-top:8px; padding-left:20px; color:var(--text-muted); font-size:13px;">
+                {% for s in validation.strengths[:5] %}
+                <li>{{ s }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% if validation.get('problems_remaining') and validation.problems_remaining|length > 0 %}
+        <div style="margin-top:12px;">
+            <strong style="color:var(--warning);">Problemas Restantes:</strong>
+            <ul style="margin-top:8px; padding-left:20px; color:var(--text-muted); font-size:13px;">
+                {% for p in validation.problems_remaining[:5] %}
+                <li>{{ p.get('issue', p) if p is mapping else p }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Tabs: Edited Content / Original / Diff -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchResultTab('edited')">Conteudo Editado</button>
+        <button class="tab" onclick="switchResultTab('original')">Original</button>
+        <button class="tab" onclick="switchResultTab('diff')">Diff</button>
+    </div>
+
+    <div class="tab-content active" id="rtab-edited">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Documento Editado</div>
+                <button class="btn btn-outline btn-sm" onclick="copyContent('editedContent')">Copiar</button>
+            </div>
+            <div class="content-preview" id="editedContent">{{ record.edited_content }}</div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="rtab-original">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Documento Original</div>
+                <button class="btn btn-outline btn-sm" onclick="copyContent('originalContent')">Copiar</button>
+            </div>
+            <div class="content-preview" id="originalContent">{{ record.original_content }}</div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="rtab-diff">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:12px;">Diferecas (Diff)</div>
+            <div class="diff-view" id="diffView">{% if record.diff_text %}{% for line in record.diff_text.split('\n') %}{% if line.startswith('+ ') %}<span class="diff-add">{{ line }}</span>
+{% elif line.startswith('- ') %}<span class="diff-del">{{ line }}</span>
+{% else %}<span class="diff-ctx">{{ line }}</span>
+{% endif %}{% endfor %}{% else %}Diff nao disponivel{% endif %}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchResultTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('rtab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+}
+
+function copyContent(elementId) {
+    const el = document.getElementById(elementId);
+    navigator.clipboard.writeText(el.textContent).then(() => {
+        const btn = event.target;
+        btn.textContent = 'Copiado!';
+        setTimeout(() => btn.textContent = 'Copiar', 2000);
+    });
+}
+</script>
+{% endblock %}

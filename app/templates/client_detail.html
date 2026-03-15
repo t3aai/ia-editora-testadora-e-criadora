@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}{{ client.name }} - T3A{% endblock %}
+
+{% block content %}
+<div style="margin-top:20px;">
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+    {% if success %}
+    <div class="alert alert-success">{{ success }}</div>
+    {% endif %}
+
+    <div class="flex-between mb-4">
+        <div>
+            <h1 style="font-size:24px;">{{ client.name }}</h1>
+            <p style="color:var(--text-muted); font-size:14px;">{{ client.description or '' }}</p>
+        </div>
+        <div class="gap-2">
+            <a href="/clients/{{ client.id }}/edit" class="btn btn-outline">Editar Dados</a>
+            <form method="post" action="/clients/{{ client.id }}/delete" style="display:inline;"
+                  onsubmit="return confirm('Excluir este cliente e todo seu historico?')">
+                <button type="submit" class="btn btn-danger btn-sm">Excluir</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Request Form -->
+    <div class="card" style="border-color: var(--primary); border-width: 2px;">
+        <div class="card-title" style="margin-bottom:12px; color:var(--primary);">Editar com IA</div>
+        <form method="post" action="/clients/{{ client.id }}/edit-request" id="editForm">
+            <div class="form-group">
+                <label for="edit_request">O que voce quer editar?</label>
+                <textarea id="edit_request" name="edit_request" class="form-control"
+                          style="min-height:100px;" required minlength="10"
+                          placeholder="Ex: Atualizar precos do catalogo, melhorar fluxo de atendimento, adicionar regra de upsell..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Documentos a editar:</label>
+                <div style="display:flex; gap:16px; margin-top:6px;">
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">
+                        <input type="checkbox" name="doc_prompt" value="1" {{ 'checked' if client.prompt_content }}>
+                        Prompt
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">
+                        <input type="checkbox" name="doc_base" value="1" {{ 'checked' if client.base_content }}>
+                        Base de Dados
+                    </label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:14px;">
+                        <input type="checkbox" name="doc_geral" value="1" {{ 'checked' if client.general_prompt_content }}>
+                        Prompt Geral
+                    </label>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary" onclick="showEditLoading()">
+                Enviar para IA Editora
+            </button>
+        </form>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+        <button class="tab active" onclick="switchTab('prompt')">Prompt</button>
+        <button class="tab" onclick="switchTab('base')">Base de Dados</button>
+        <button class="tab" onclick="switchTab('geral')">Prompt Geral</button>
+        <button class="tab" onclick="switchTab('history')">Historico de Edicoes</button>
+    </div>
+
+    <!-- Tab: Prompt -->
+    <div class="tab-content active" id="tab-prompt">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Prompt do Cliente</div>
+                <span style="color:var(--text-muted); font-size:12px;">{{ (client.prompt_content|length) if client.prompt_content else 0 }} caracteres</span>
+            </div>
+            {% if client.prompt_content %}
+                <div class="content-preview">{{ client.prompt_content }}</div>
+            {% else %}
+                <div class="alert alert-warning">Nenhum prompt cadastrado. <a href="/clients/{{ client.id }}/edit">Adicionar</a></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tab: Base de Dados -->
+    <div class="tab-content" id="tab-base">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Base de Dados</div>
+                <span style="color:var(--text-muted); font-size:12px;">{{ (client.base_content|length) if client.base_content else 0 }} caracteres</span>
+            </div>
+            {% if client.base_content %}
+                <div class="content-preview">{{ client.base_content }}</div>
+            {% else %}
+                <div class="alert alert-warning">Nenhuma base cadastrada. <a href="/clients/{{ client.id }}/edit">Adicionar</a></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tab: Prompt Geral -->
+    <div class="tab-content" id="tab-geral">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">Prompt Geral</div>
+                <span style="color:var(--text-muted); font-size:12px;">{{ (client.general_prompt_content|length) if client.general_prompt_content else 0 }} caracteres</span>
+            </div>
+            {% if client.general_prompt_content %}
+                <div class="content-preview">{{ client.general_prompt_content }}</div>
+            {% else %}
+                <div class="alert alert-warning">Nenhum prompt geral cadastrado. <a href="/clients/{{ client.id }}/edit">Adicionar</a></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Tab: History -->
+    <div class="tab-content" id="tab-history">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Historico de Edicoes</div>
+            {% if jobs %}
+                <table class="table">
+                    <thead><tr><th>Data</th><th>Pedido</th><th>Status</th><th>Acoes</th></tr></thead>
+                    <tbody>
+                        {% for j in jobs %}
+                        <tr>
+                            <td>{{ j.created_at.strftime('%d/%m/%Y %H:%M') if j.created_at else 'N/A' }}</td>
+                            <td style="max-width:400px;">{{ j.edit_request[:100] }}{{ '...' if j.edit_request|length > 100 else '' }}</td>
+                            <td>
+                                {% if j.status == 'completed' %}<span class="badge badge-success">Completo</span>
+                                {% elif j.status == 'processing' %}<span class="badge badge-warning">Processando</span>
+                                {% elif j.status == 'failed' %}<span class="badge badge-danger">Falha</span>
+                                {% else %}<span class="badge badge-info">Pendente</span>{% endif %}
+                            </td>
+                            <td>
+                                <a href="/clients/{{ client.id }}/jobs/{{ j.id }}/review" class="btn btn-outline btn-sm">
+                                    {{ 'Revisar' if j.status == 'completed' else 'Ver Status' }}
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p style="color:var(--text-muted); text-align:center; padding:20px;">
+                    Nenhuma edicao realizada. Use o formulario acima para editar com IA.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    event.target.classList.add('active');
+}
+function showEditLoading() {
+    const req = document.getElementById('edit_request').value;
+    if (req.length >= 10) {
+        document.getElementById('loadingText').textContent = 'IA analisando documentos e gerando alteracoes... Isso pode levar alguns minutos.';
+        document.getElementById('loadingOverlay').classList.add('active');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if client else 'Novo' }} Cliente - T3A{% endblock %}
+
+{% block content %}
+<div style="margin-top:20px;">
+    <h1 style="font-size:24px; margin-bottom:20px;">
+        {{ 'Editar Cliente: ' + client.name if client else 'Novo Cliente' }}
+    </h1>
+
+    {% if error %}
+    <div class="alert alert-error">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="{{ '/clients/' + (client.id|string) + '/edit' if client else '/clients/new' }}">
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Informacoes do Cliente</div>
+            <div class="grid-2">
+                <div class="form-group">
+                    <label for="name">Nome do Cliente *</label>
+                    <input type="text" id="name" name="name" class="form-control"
+                           value="{{ client.name if client else '' }}" required placeholder="Ex: Gnomo Suplementos">
+                </div>
+                <div class="form-group">
+                    <label for="description">Descricao</label>
+                    <input type="text" id="description" name="description" class="form-control"
+                           value="{{ client.description if client else '' }}" placeholder="Ex: Loja de suplementos">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Prompt do Cliente</div>
+            <div class="form-group">
+                <label for="prompt_content">PROMPT_CLIENTE completo (markdown)</label>
+                <textarea id="prompt_content" name="prompt_content" class="form-control"
+                          style="min-height:350px;" placeholder="Cole o prompt do cliente aqui...">{{ client.prompt_content if client else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Base de Dados do Cliente</div>
+            <div class="form-group">
+                <label for="base_content">BASE_DE_DADOS completa (markdown)</label>
+                <textarea id="base_content" name="base_content" class="form-control"
+                          style="min-height:350px;" placeholder="Cole a base de dados aqui...">{{ client.base_content if client else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title" style="margin-bottom:16px;">Prompt Geral</div>
+            <div class="form-group">
+                <label for="general_prompt_content">Prompt geral/sistema (compartilhado ou customizado)</label>
+                <textarea id="general_prompt_content" name="general_prompt_content" class="form-control"
+                          style="min-height:250px;" placeholder="Cole o prompt geral aqui (instrucoes de sistema)...">{{ client.general_prompt_content if client else '' }}</textarea>
+            </div>
+        </div>
+
+        <div class="gap-2">
+            <button type="submit" class="btn btn-primary btn-lg">
+                {{ 'Salvar Alteracoes' if client else 'Cadastrar Cliente' }}
+            </button>
+            <a href="{{ '/clients/' + (client.id|string) if client else '/' }}" class="btn btn-outline btn-lg">Cancelar</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

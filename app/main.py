@@ -29,8 +29,11 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
-    logger.info("Database initialized")
+    try:
+        init_db()
+        logger.info("Database initialized")
+    except Exception as e:
+        logger.error(f"Database init failed: {e} - will retry on first request")
     yield
 
 

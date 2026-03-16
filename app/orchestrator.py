@@ -131,22 +131,37 @@ Gere as alteracoes necessarias em formato JSON conforme especificado."""
         ]
 
         try:
-            response, provider, metadata = llm_manager.invoke_with_fallback(messages=messages)
+            result = None
+            provider = None
+            metadata = {}
+            last_error = None
 
-            if metadata.get("usage"):
-                cost_tracker.track_usage(
-                    provider=provider,
-                    model=metadata.get("model", "unknown"),
-                    agent_type="editor",
-                    response_metadata=metadata,
-                    job_id=job_id
-                )
+            for attempt in range(2):
+                response, provider, metadata = llm_manager.invoke_with_fallback(messages=messages)
 
-            self._report_progress("parsing", 80, "Parsing AI response")
+                if metadata.get("usage"):
+                    cost_tracker.track_usage(
+                        provider=provider,
+                        model=metadata.get("model", "unknown"),
+                        agent_type="editor",
+                        response_metadata=metadata,
+                        job_id=job_id
+                    )
 
-            # Parse JSON response (with robust repair for malformed LLM output)
-            content = response.content
-            result = parse_llm_json(content)
+                self._report_progress("parsing", 80, "Parsing AI response")
+
+                content = response.content
+                try:
+                    result = parse_llm_json(content)
+                    break
+                except ValueError as e:
+                    last_error = e
+                    logger.warning(f"JSON parse failed (attempt {attempt + 1}/2), retrying: {e}")
+                    if attempt == 0:
+                        self._report_progress("editing", 50, "Resposta invalida, tentando novamente...")
+
+            if result is None:
+                raise last_error
 
             changes = result.get("changes", [])
             summary = result.get("summary", "")

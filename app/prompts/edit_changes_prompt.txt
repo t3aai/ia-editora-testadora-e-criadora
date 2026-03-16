@@ -67,7 +67,7 @@ Retorne APENAS JSON valido, sem texto adicional:
 1. O campo "field" DEVE ser exatamente: "prompt", "base_de_dados" ou "prompt_geral"
 2. O campo "before" DEVE existir literalmente no documento correspondente
 3. Se o pedido nao se aplica a um documento, NAO gere changes para ele
-4. Gere entre 1 e 15 changes no maximo
+4. Gere entre 1 e 10 changes no maximo (NUNCA mais que 10)
 5. Se for uma ADICAO (novo conteudo), o "before" deve ser o ponto de insercao (ultima linha antes de onde inserir) e o "after" deve conter esse ponto + o novo conteudo
 6. Priorize as mudancas mais impactantes primeiro
 

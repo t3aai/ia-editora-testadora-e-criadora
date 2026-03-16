@@ -29,7 +29,7 @@ class LLMProviderManager:
                     api_key=config["api_key"],
                     model=config["model"],
                     temperature=0.1,
-                    max_tokens=4096
+                    max_tokens=16384
                 )
                 logger.info(f"Initialized Anthropic provider: {config['model']}")
             except Exception as e:
@@ -42,7 +42,7 @@ class LLMProviderManager:
                     api_key=config["api_key"],
                     model=config["model"],
                     temperature=0.1,
-                    max_tokens=4096
+                    max_tokens=16384
                 )
                 logger.info(f"Initialized OpenAI provider: {config['model']}")
             except Exception as e:
@@ -55,7 +55,7 @@ class LLMProviderManager:
                     google_api_key=config["api_key"],
                     model=config["model"],
                     temperature=0.1,
-                    max_output_tokens=4096
+                    max_output_tokens=16384
                 )
                 logger.info(f"Initialized Gemini provider: {config['model']}")
             except Exception as e:

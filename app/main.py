@@ -367,6 +367,14 @@ async def approve_change(request: Request, client_id: int, job_id: int, change_i
         change = db.query(EditChange).filter(EditChange.id == change_id, EditChange.job_id == job_id).first()
         if not change:
             return JSONResponse({"error": "not found"}, status_code=404)
+        # Accept user-edited after_text if provided
+        try:
+            body = await request.json()
+            edited_text = body.get("after_text")
+            if edited_text and edited_text.strip() != change.after_text.strip():
+                change.after_text = edited_text
+        except Exception:
+            pass
         change.status = "approved"
         db.commit()
 

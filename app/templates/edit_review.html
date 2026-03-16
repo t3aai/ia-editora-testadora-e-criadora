@@ -104,12 +104,16 @@
                     </div>
                     {% endif %}
 
-                    <!-- After -->
+                    <!-- After (editable) -->
                     <div style="margin-bottom:12px;">
                         <div style="font-size:12px; font-weight:600; color:#3fb950; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
                             <span style="font-size:16px;">+</span> {{ 'Substituir por' if c.before_text else 'Adicionar' }}
+                            <span style="font-size:11px; color:var(--text-muted); font-weight:400; margin-left:auto;">clique para editar</span>
                         </div>
-                        <div class="diff-after">{{ c.after_text }}</div>
+                        <div class="diff-after" id="after-{{ c.id }}" contenteditable="true"
+                             style="cursor:text; outline:none; border:1px solid transparent; border-radius:4px; padding:8px; transition:border-color 0.2s;"
+                             onfocus="this.style.borderColor='var(--primary)'"
+                             onblur="this.style.borderColor='transparent'">{{ c.after_text }}</div>
                     </div>
 
                     <!-- Reason -->
@@ -276,7 +280,14 @@ function advanceToNextPending() {
 }
 
 async function approveChange(changeId) {
-    const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/changes/${changeId}/approve`, { method: 'POST' });
+    // Send edited after_text if user modified it
+    const afterEl = document.getElementById('after-' + changeId);
+    const editedText = afterEl ? afterEl.innerText : null;
+    const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/changes/${changeId}/approve`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({after_text: editedText})
+    });
     const data = await resp.json();
     // Update card status
     cards.forEach(c => {

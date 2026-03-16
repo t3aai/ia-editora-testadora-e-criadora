@@ -57,6 +57,8 @@ def parse_llm_json(text: str) -> dict:
         return result
 
     logger.error(f"All JSON parse strategies failed: {errors}")
+    # Log full response for debugging
+    logger.error(f"=== FULL RAW RESPONSE START ===\n{text}\n=== FULL RAW RESPONSE END ===")
     raise ValueError(f"Failed to parse JSON from LLM response (length={len(text)})")
 
 

@@ -17,6 +17,7 @@ from app.document_processor import document_processor
 from app.utils.markdown_utils import markdown_processor
 from app.llm.provider_manager import llm_manager
 from app.llm.cost_tracker import cost_tracker
+from app.utils.json_utils import parse_llm_json
 from langchain_core.messages import SystemMessage, HumanMessage
 
 logger = logging.getLogger(__name__)
@@ -143,15 +144,9 @@ Gere as alteracoes necessarias em formato JSON conforme especificado."""
 
             self._report_progress("parsing", 80, "Parsing AI response")
 
-            # Parse JSON response
+            # Parse JSON response (with robust repair for malformed LLM output)
             content = response.content
-            json_start = content.find('{')
-            json_end = content.rfind('}') + 1
-
-            if json_start >= 0 and json_end > json_start:
-                result = json.loads(content[json_start:json_end])
-            else:
-                raise ValueError("No JSON found in response")
+            result = parse_llm_json(content)
 
             changes = result.get("changes", [])
             summary = result.get("summary", "")

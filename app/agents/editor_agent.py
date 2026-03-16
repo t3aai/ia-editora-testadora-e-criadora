@@ -8,6 +8,7 @@ import os
 from typing import Optional
 
 from app.agents.base_agent import BaseAgent, ProviderType
+from app.utils.json_utils import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -58,12 +59,7 @@ Retorne o documento editado em formato JSON conforme especificado."""
         )
 
         try:
-            json_start = response.find('{')
-            json_end = response.rfind('}') + 1
-            if json_start >= 0 and json_end > json_start:
-                edit_result = json.loads(response[json_start:json_end])
-            else:
-                raise ValueError("No JSON found in response")
+            edit_result = parse_llm_json(response)
             edit_result["_metadata"] = metadata
             return edit_result
         except Exception as e:

@@ -8,6 +8,7 @@ import os
 from typing import Optional
 
 from app.agents.base_agent import BaseAgent, ProviderType
+from app.utils.json_utils import parse_llm_json
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +64,7 @@ Retorne sua validação completa em formato JSON conforme especificado."""
         )
 
         try:
-            json_start = response.find('{')
-            json_end = response.rfind('}') + 1
-            if json_start >= 0 and json_end > json_start:
-                validation = json.loads(response[json_start:json_end])
-            else:
-                raise ValueError("No JSON found in response")
+            validation = parse_llm_json(response)
             validation["_metadata"] = metadata
             return validation
         except Exception as e:

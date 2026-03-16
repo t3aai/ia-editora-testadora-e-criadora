@@ -8,6 +8,8 @@ import logging
 import os
 from dataclasses import dataclass, field
 
+from app.utils.json_utils import parse_llm_json
+
 from app.llm.provider_manager import llm_manager
 from langchain_core.messages import SystemMessage, HumanMessage
 
@@ -115,11 +117,9 @@ Regras:
         content = response.content
 
         # Parse JSON
-        json_start = content.find('{')
-        json_end = content.rfind('}') + 1
-        if json_start >= 0 and json_end > json_start:
-            data = json.loads(content[json_start:json_end])
-        else:
+        try:
+            data = parse_llm_json(content)
+        except ValueError:
             data = {"coverage_percent": 50, "questions": [], "reasoning": "Nao foi possivel analisar"}
 
         coverage = min(100, max(0, int(data.get("coverage_percent", 50))))

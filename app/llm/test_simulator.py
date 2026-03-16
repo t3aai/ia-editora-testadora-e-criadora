@@ -6,6 +6,8 @@ Supports multiple LLM providers for realistic testing.
 import json
 import logging
 from typing import Optional
+
+from app.utils.json_utils import parse_llm_json
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
@@ -79,11 +81,8 @@ Retorne APENAS JSON:
     try:
         response, _, _ = llm_manager.invoke_with_fallback(messages=messages)
         content = response.content
-        json_start = content.find('{')
-        json_end = content.rfind('}') + 1
-        if json_start >= 0 and json_end > json_start:
-            result = json.loads(content[json_start:json_end])
-            return result.get("messages", [])
+        result = parse_llm_json(content)
+        return result.get("messages", [])
     except Exception as e:
         logger.error(f"Failed to generate scenario: {e}")
 

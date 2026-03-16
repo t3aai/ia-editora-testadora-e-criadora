@@ -137,7 +137,9 @@ Gere as alteracoes necessarias em formato JSON conforme especificado."""
             last_error = None
 
             for attempt in range(2):
-                response, provider, metadata = llm_manager.invoke_with_fallback(messages=messages)
+                response, provider, metadata = llm_manager.invoke_with_fallback(
+                    messages=messages, json_mode=True
+                )
 
                 if metadata.get("usage"):
                     cost_tracker.track_usage(
@@ -156,7 +158,9 @@ Gere as alteracoes necessarias em formato JSON conforme especificado."""
                     break
                 except ValueError as e:
                     last_error = e
-                    logger.warning(f"JSON parse failed (attempt {attempt + 1}/2), retrying: {e}")
+                    # Log raw response for debugging
+                    logger.error(f"JSON parse failed (attempt {attempt + 1}/2). Raw response (first 500 chars): {content[:500]}")
+                    logger.error(f"Raw response (last 500 chars): {content[-500:]}")
                     if attempt == 0:
                         self._report_progress("editing", 50, "Resposta invalida, tentando novamente...")
 

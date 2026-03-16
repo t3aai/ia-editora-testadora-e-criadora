@@ -64,7 +64,8 @@ class LLMProviderManager:
     def invoke_with_fallback(
         self,
         messages: list[BaseMessage],
-        preferred_provider: Optional[ProviderType] = None
+        preferred_provider: Optional[ProviderType] = None,
+        json_mode: bool = False
     ) -> tuple[AIMessage, ProviderType, dict]:
         if preferred_provider:
             providers = [preferred_provider]
@@ -83,6 +84,11 @@ class LLMProviderManager:
             try:
                 logger.info(f"Trying provider: {provider}")
                 llm = self.providers[provider]
+
+                # Use JSON mode if requested (forces valid JSON output)
+                if json_mode and provider == "openai":
+                    llm = llm.bind(response_format={"type": "json_object"})
+
                 response = llm.invoke(messages)
 
                 metadata = {

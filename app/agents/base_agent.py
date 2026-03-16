@@ -33,7 +33,8 @@ class BaseAgent(ABC):
 
         try:
             response, provider, metadata = llm_manager.invoke_with_fallback(
-                messages=messages, preferred_provider=self.preferred_provider
+                messages=messages, preferred_provider=self.preferred_provider,
+                json_mode=True
             )
             if metadata.get("usage"):
                 cost_tracker.track_usage(

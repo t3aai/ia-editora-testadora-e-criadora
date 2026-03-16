@@ -371,10 +371,11 @@ async def approve_change(request: Request, client_id: int, job_id: int, change_i
         try:
             body = await request.json()
             edited_text = body.get("after_text")
-            if edited_text and edited_text.strip() != change.after_text.strip():
+            if edited_text is not None:
                 change.after_text = edited_text
-        except Exception:
-            pass
+                logger.info(f"Change {change_id}: after_text updated by user ({len(edited_text)} chars)")
+        except Exception as e:
+            logger.warning(f"Could not parse approve body: {e}")
         change.status = "approved"
         db.commit()
 

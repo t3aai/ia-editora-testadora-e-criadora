@@ -110,10 +110,11 @@
                             <span style="font-size:16px;">+</span> {{ 'Substituir por' if c.before_text else 'Adicionar' }}
                             <span style="font-size:11px; color:var(--text-muted); font-weight:400; margin-left:auto;">clique para editar</span>
                         </div>
-                        <div class="diff-after" id="after-{{ c.id }}" contenteditable="true"
-                             style="cursor:text; outline:none; border:1px solid transparent; border-radius:4px; padding:8px; transition:border-color 0.2s;"
+                        <textarea id="after-{{ c.id }}" class="diff-after"
+                             style="width:100%; min-height:80px; background:rgba(63,185,80,0.1); color:#3fb950; border:1px solid transparent; border-radius:4px; padding:8px; font-family:monospace; font-size:13px; resize:vertical; transition:border-color 0.2s; white-space:pre-wrap;"
                              onfocus="this.style.borderColor='var(--primary)'"
-                             onblur="this.style.borderColor='transparent'">{{ c.after_text }}</div>
+                             onblur="this.style.borderColor='transparent'"
+                             oninput="this.style.height='auto'; this.style.height=this.scrollHeight+'px'">{{ c.after_text }}</textarea>
                     </div>
 
                     <!-- Reason -->
@@ -280,9 +281,9 @@ function advanceToNextPending() {
 }
 
 async function approveChange(changeId) {
-    // Send edited after_text if user modified it
+    // Send edited after_text from textarea
     const afterEl = document.getElementById('after-' + changeId);
-    const editedText = afterEl ? afterEl.innerText : null;
+    const editedText = afterEl ? afterEl.value : null;
     const resp = await fetch(`/api/clients/${clientId}/jobs/${jobId}/changes/${changeId}/approve`, {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
@@ -363,6 +364,12 @@ async function applyChanges() {
         document.getElementById('applyBtn').textContent = 'Aplicar alteracoes aprovadas';
     }
 }
+
+// Auto-resize textareas on load
+document.querySelectorAll('textarea.diff-after').forEach(ta => {
+    ta.style.height = 'auto';
+    ta.style.height = ta.scrollHeight + 'px';
+});
 
 // Init
 updateUI();
